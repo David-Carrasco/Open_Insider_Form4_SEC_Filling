@@ -1,5 +1,6 @@
 library(rvest)
 library(httr)
+library(dplyr)
 
 ############################
 ##### DOWNLOADING DATA #####
@@ -8,15 +9,33 @@ library(httr)
 #Query parameters (quantities in $)
 #min_share_price <- 10
 #min_value_traded <- 100000 
-max_number_trades <- 999999
+max_number_trades_per_page <- 5000
 
-#Model url
-main_url <- paste0('http://openinsider.com/screener?s=&o=&pl=&ph=&ll=&lh=&fd=0&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xp=1&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999&grp=0&nfl= &nfh=&nil=&nih=&nol=&noh=&v2l=&v2h=&oc2l=&oc2h=&sortcol=0&cnt=', max_number_trades)
+#Each query downloads 5000 filings as maximum - Creating a recursive downloads till there are no more filings
+last_page <- 20
 
-#Creating CSV file with the whole database of Open Insider - Downloading only PURCHSASES
-data_insider <- read_html(GET(main_url)) %>%
-  html_node('.tinytable') %>%
-  html_table(header = TRUE, trim = TRUE, dec = ',')
+#Model url for 1 page - (Downloading only PURCHASES)
+#main_url <- paste0('http://openinsider.com/screener?s=&o=&pl=&ph=&ll=&lh=&fd=0&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xp=1&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h=&oc2l=&oc2h=&sortcol=0&cnt=', max_number_trades_per_page)
+
+#Creating CSV file with the whole database of Open Insider website, page by page 
+data_insider_per_page <- lapply(1:last_page, function(current_page){
+  
+  url <- paste0('http://openinsider.com/screener?s=&o=&pl=&ph=&ll=&lh=&fd=0&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xp=1&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h=&oc2l=&oc2h=&sortcol=0&cnt=', max_number_trades_per_page,
+                '&page=', current_page)
+  
+  tmp <- read_html(GET(url)) %>%
+    html_node('.tinytable') %>%
+    html_table(header = TRUE, trim = TRUE, dec = ',')
+  
+  return(tmp)
+  
+})
+
+#Joining all the data in a dataframe
+data_insider <- do.call(rbind, data_insider_per_page)
+
+#Deleting repeated trades (More queries that are required)
+data_insider <- data_insider[!duplicated(data_insider),]
 
 ############################
 ##### DATA PREPARATION #####
