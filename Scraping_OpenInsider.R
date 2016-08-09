@@ -3,6 +3,7 @@ library(httr)
 library(dplyr)
 library(tidyr)
 library(stringr)
+library(quantmod)
 
 ############################
 ##### DOWNLOADING DATA #####
@@ -53,7 +54,7 @@ colnames(data_insider) <- c('Details_Filing', 'Filing_Date', 'Trade_Date', 'Tick
 colSums(is.na(data_insider))
 data_insider <- data_insider[!is.na(data_insider$Ticker),]
 
-#Rename the X column
+#Renaming '' by 'Regular' filing in the Details_Filing column
 data_insider$Details_Filing[data_insider$Details_Filing == ''] <- 'Regular'
 
 # Filing Data and Trade date. From character to Date. Hour:Minute:Second part won't be keep in mind
@@ -64,9 +65,10 @@ data_insider$Trade_Date <- as.Date(data_insider$Trade_Date, format = '%Y-%m-%d')
 data_insider$Dif_Filing_Trade <- as.integer(abs(data_insider$Trade_Date - data_insider$Filing_Date))
 
 # Character -> Factor (Ticker, Company, Insider ...)
+# Deleting also the Company name since the Ticker is enough to identify the company
 data_insider$Ticker <- as.factor(data_insider$Ticker)
-data_insider$Company <- as.factor(data_insider$Company)
 data_insider$Insider_Name <- as.factor(data_insider$Insider_Name)
+data_insider$Company <- NULL
 
 #Deleting Trader_Type because all operations are purchases, in this case!
 data_insider$Trade_Type <- NULL
@@ -77,22 +79,25 @@ data_insider$Shares_Traded <- as.numeric(str_replace_all(data_insider$Shares_Tra
 data_insider$Shares_Owned <- as.numeric(str_replace_all(data_insider$Shares_Owned, pattern = '\\,', replacement = ''))
 data_insider$Money_Traded <- as.numeric(str_replace_all(data_insider$Money_Traded, pattern = '\\,|\\+|\\$', replacement = ''))
 
-
-#TODO
 # Shares owned - special case 'New' - Create new logical column pointing out if it's a new position
-data_insider$new_owner <- ifelse(data_insider$Own_Change_pct == 'New', TRUE, FALSE)
+# Avoiding the % share that insider holds after the trade
+data_insider$New_Owner <- ifelse(data_insider$Own_Change_pct == 'New', TRUE, FALSE)
 data_insider$Own_Change_pct[data_insider$Own_Change_pct == 'New'] <- '0'
 data_insider$Own_Change_pct <- as.numeric(str_replace_all(data_insider$Own_Change_pct, pattern = '\\+|\\%|\\>', replacement = ''))
 
-
-
-
-
-
-
+#TEMPORAL
+data_insider$Own_Change_pct <- NULL
 
 # Tidyr - Separate rows by Insider Title (1 row by each element)
+data_insider <- data_insider %>%
+  mutate(Insider_Title = strsplit(Insider_Title, ",")) %>%
+  unnest(Insider_Title) %>%
+  str_trim(Insider_Title)
 
+#TODO
+#Check ';' and other symbols in the Insider_Title column - Clean the data in the column too
+
+#Moving to factor
 data_insider$Insider_Title <- as.factor(data_insider$Insider_Title)
 
 
@@ -101,6 +106,9 @@ data_insider$Insider_Title <- as.factor(data_insider$Insider_Title)
 
 
 
+
+#Ordering columns
+data_insider <- dplyr::select(data_insider, ___)
 
 ###########
 ## MODEL ##
