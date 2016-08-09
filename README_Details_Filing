@@ -1,0 +1,10 @@
+
+A	Amended filing
+D	Derivative transaction in filing (usually option exercise)
+E	Error detected in filing
+M	Multiple transactions in filing; earliest reported transaction date and weighted average transaction price
+S - Sale	Sale of securities on an exchange or to another person
+S - Sale+OE	Sale of securities on an exchange or to another person (after option exercise)
+F - Tax	Payment of exercise price or tax liability using portion of securities received from the company
+P - Purchase	Purchase of securities on an exchange or from another person
+Regular - Regular filing

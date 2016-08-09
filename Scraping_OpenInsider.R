@@ -1,6 +1,8 @@
 library(rvest)
 library(httr)
 library(dplyr)
+library(tidyr)
+library(stringr)
 
 ############################
 ##### DOWNLOADING DATA #####
@@ -41,14 +43,61 @@ data_insider <- data_insider[!duplicated(data_insider),]
 ##### DATA PREPARATION #####
 ############################
 
-#TODO
-# X column -> Identify the values with the appropiate ones that are pointed out in the open insider website
-# Character -> Date
-# Character -> Factore (Ticker, Company, Insider ...)
+#Preparing colnames
+colnames(data_insider) <- c('Details_Filing', 'Filing_Date', 'Trade_Date', 'Ticker', 'Company',
+                            'Insider_Name', 'Insider_Title', 'Trade_Type', 'Share_Price', 'Shares_Traded',
+                            'Shares_Owned', 'Own_Change_pct', 'Money_Traded', '1day_return', '1week_return', 
+                            '1month_return', '6month_return')
+
+#Deleting NAs rows
+colSums(is.na(data_insider))
+data_insider <- data_insider[!is.na(data_insider$Ticker),]
+
+#Rename the X column
+data_insider$Details_Filing[data_insider$Details_Filing == ''] <- 'Regular'
+
+# Filing Data and Trade date. From character to Date. Hour:Minute:Second part won't be keep in mind
+data_insider$Filing_Date <- as.Date(data_insider$Filing_Date, format = '%Y-%m-%d')
+data_insider$Trade_Date <- as.Date(data_insider$Trade_Date, format = '%Y-%m-%d')
+
+# New column - Calculate difference in days between Filling Date and Trade date
+data_insider$Dif_Filing_Trade <- as.integer(abs(data_insider$Trade_Date - data_insider$Filing_Date))
+
+# Character -> Factor (Ticker, Company, Insider ...)
+data_insider$Ticker <- as.factor(data_insider$Ticker)
+data_insider$Company <- as.factor(data_insider$Company)
+data_insider$Insider_Name <- as.factor(data_insider$Insider_Name)
+
+#Deleting Trader_Type because all operations are purchases, in this case!
+data_insider$Trade_Type <- NULL
+
 # Character -> Numeric
-# Calculate difference in days between Filling Date and Trade date
+data_insider$Share_Price <- as.numeric(str_replace_all(data_insider$Share_Price, pattern = '\\$|\\,', replacement = ''))
+data_insider$Shares_Traded <- as.numeric(str_replace_all(data_insider$Shares_Traded, pattern = '\\+|\\,', replacement = ''))
+data_insider$Shares_Owned <- as.numeric(str_replace_all(data_insider$Shares_Owned, pattern = '\\,', replacement = ''))
+data_insider$Money_Traded <- as.numeric(str_replace_all(data_insider$Money_Traded, pattern = '\\,|\\+|\\$', replacement = ''))
+
+
+#TODO
+# Shares owned - special case 'New' - Create new logical column pointing out if it's a new position
+data_insider$new_owner <- ifelse(data_insider$Own_Change_pct == 'New', TRUE, FALSE)
+data_insider$Own_Change_pct[data_insider$Own_Change_pct == 'New'] <- '0'
+data_insider$Own_Change_pct <- as.numeric(str_replace_all(data_insider$Own_Change_pct, pattern = '\\+|\\%|\\>', replacement = ''))
+
+
+
+
+
+
+
+
 # Tidyr - Separate rows by Insider Title (1 row by each element)
-# 
+
+data_insider$Insider_Title <- as.factor(data_insider$Insider_Title)
+
+
+
+
 
 
 
@@ -60,7 +109,8 @@ data_insider <- data_insider[!duplicated(data_insider),]
 #TODO
 # Add market capitalization of each company
 # Calculate max return in different timeframes (1d, 1w, 1m, 6m, 1y)
-# 
+# Group by the same date and the same company??
+
 
 
 
